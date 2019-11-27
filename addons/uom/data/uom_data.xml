@@ -39,18 +39,18 @@
             <field name="factor_inv" eval="12"/>
             <field name="uom_type">bigger</field>
         </record>
-        <record id="product_uom_kgm" model="uom.uom">
-            <field name="category_id" ref="product_uom_categ_kgm"/>
-            <field name="name">kg</field>
-            <field name="factor" eval="1"/>
-            <field name="rounding" eval="0.001"/>
-        </record>
-        <record id="product_uom_gram" model="uom.uom">
-            <field name="category_id" ref="product_uom_categ_kgm"/>
-            <field name="name">g</field>
-            <field name="factor" eval="1000"/>
-            <field name="uom_type">smaller</field>
-        </record>
+<!--        <record id="product_uom_kgm" model="uom.uom">-->
+<!--            <field name="category_id" ref="product_uom_categ_kgm"/>-->
+<!--            <field name="name">kg</field>-->
+<!--            <field name="factor" eval="1"/>-->
+<!--            <field name="rounding" eval="0.001"/>-->
+<!--        </record>-->
+<!--        <record id="product_uom_gram" model="uom.uom">-->
+<!--            <field name="category_id" ref="product_uom_categ_kgm"/>-->
+<!--            <field name="name">g</field>-->
+<!--            <field name="factor" eval="1000"/>-->
+<!--            <field name="uom_type">smaller</field>-->
+<!--        </record>-->
         <record id="product_uom_day" model="uom.uom">
             <field name="name">Day(s)</field>
             <field eval="uom_categ_wtime" name="category_id"/>
