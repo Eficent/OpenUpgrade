@@ -25,31 +25,31 @@
     </record>
 
     <!-- Custom reports (aka filters) -->
-    <record id="filter_sale_report_sales_funnel" model="ir.filters">
-        <field name="name">Sales Funnel</field>
-        <field name="model_id">sale.report</field>
-        <field name="domain">['&amp;', ('date','&lt;=', time.strftime('%%Y-12-31')), '&amp;', ('date','&gt;=',time.strftime('%%Y-01-01')), ('state','not in',('cancel',))]</field>
-        <field name="user_id" eval="False"/>
-        <field name="context">{'group_by': ['state'], 'measures': ['price_subtotal']}</field>
-    </record>
-    <record id="filter_sale_report_salespersons" model="ir.filters">
-        <field name="name">By Salespersons</field>
-        <field name="model_id">sale.report</field>
-        <field name="user_id" eval="False"/>
-        <field name="context">{'group_by': ['date:month', 'user_id']}</field>
-    </record>
-    <record id="filter_sale_report_salesteam" model="ir.filters">
-        <field name="name">By Salesteam</field>
-        <field name="model_id">sale.report</field>
-        <field name="user_id" eval="False"/>
-        <field name="context">{'group_by': ['date:month', 'team_id']}</field>
-    </record>
-    <record id="filter_isale_report_product" model="ir.filters">
-        <field name="name">By Product</field>
-        <field name="model_id">sale.report</field>
-        <field name="user_id" eval="False"/>
-        <field name="context">{'group_by': ['date:month', 'product_id']}</field>
-    </record>
+<!--    <record id="filter_sale_report_sales_funnel" model="ir.filters">-->
+<!--        <field name="name">Sales Funnel</field>-->
+<!--        <field name="model_id">sale.report</field>-->
+<!--        <field name="domain">['&amp;', ('date','&lt;=', time.strftime('%%Y-12-31')), '&amp;', ('date','&gt;=',time.strftime('%%Y-01-01')), ('state','not in',('cancel',))]</field>-->
+<!--        <field name="user_id" eval="False"/>-->
+<!--        <field name="context">{'group_by': ['state'], 'measures': ['price_subtotal']}</field>-->
+<!--    </record>-->
+<!--    <record id="filter_sale_report_salespersons" model="ir.filters">-->
+<!--        <field name="name">By Salespersons</field>-->
+<!--        <field name="model_id">sale.report</field>-->
+<!--        <field name="user_id" eval="False"/>-->
+<!--        <field name="context">{'group_by': ['date:month', 'user_id']}</field>-->
+<!--    </record>-->
+<!--    <record id="filter_sale_report_salesteam" model="ir.filters">-->
+<!--        <field name="name">By Salesteam</field>-->
+<!--        <field name="model_id">sale.report</field>-->
+<!--        <field name="user_id" eval="False"/>-->
+<!--        <field name="context">{'group_by': ['date:month', 'team_id']}</field>-->
+<!--    </record>-->
+<!--    <record id="filter_isale_report_product" model="ir.filters">-->
+<!--        <field name="name">By Product</field>-->
+<!--        <field name="model_id">sale.report</field>-->
+<!--        <field name="user_id" eval="False"/>-->
+<!--        <field name="context">{'group_by': ['date:month', 'product_id']}</field>-->
+<!--    </record>-->
 
     <record id="view_order_product_search" model="ir.ui.view">
         <field name="name">sale.report.search</field>
