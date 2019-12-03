@@ -104,21 +104,53 @@ def fill_account_invoice_line_total(env):
     rest_lines = line_obj.search([]) - empty_lines - simple_lines
     openupgrade.logger.debug("Compute the rest of the account.invoice.line"
                              "totals: %s" % len(rest_lines))
-    for line in rest_lines:
-        # avoid error on taxes with other type of computation ('code' for
-        # example, provided by module `account_tax_python`). We will need to
-        # add the computation on the corresponding module post-migration.
-        types = ['percent', 'fixed', 'group', 'division']
-        if any(x.amount_type not in types for x in line.invoice_line_tax_ids):
-            continue
-        # This has been extracted from `_compute_price` method
-        currency = line.invoice_id and line.invoice_id.currency_id or None
-        price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
-        taxes = line.invoice_line_tax_ids.compute_all(
-            price, currency, line.quantity, product=line.product_id,
-            partner=line.invoice_id.partner_id,
+    line_dict_taxes = {}
+    for rest_line in rest_lines:
+        key_dict = {
+            'price_unit': rest_line.price_unit,
+            'discount': rest_line.discount,
+            'currency_id': rest_line.currency_id,
+            'quantity': rest_line.quantity,
+            'product_id': rest_line.product_id,
+            'tax_ids': rest_line.invoice_line_tax_ids,
+        }
+        if key_dict not in line_dict_taxes.keys():
+            line_dict_taxes[key_dict] = {
+                'price_total': 0.0,
+                'line_ids': rest_line.ids}
+        else:
+            line_dict_taxes[key_dict]['line_ids'].append(rest_line.id)
+
+    for key_dict in line_dict_taxes.keys():
+        price = key_dict['price_unit'] * (1 - (
+            key_dict['discount'] or 0.0) / 100.0)
+        line_dict_taxes[key_dict] = key_dict['tax_ids'].compute_all(
+            price, key_dict['currency_id'],
+            key_dict['quantity'], product=key_dict['product_id'],
+            partner=False)['total_included']
+        openupgrade.logged_query(
+            env.cr, """
+                    UPDATE account_invoice_line ail
+                    SET ail.price_total = %s
+                    WHERE ail.id IN %s
+            """, (line_dict_taxes[key_dict]['price_total'],
+                  tuple(line_dict_taxes[key_dict]['line_ids']))
         )
-        line.price_total = taxes['total_included']
+    # for line in rest_lines:
+    #     # avoid error on taxes with other type of computation ('code' for
+    #     # example, provided by module `account_tax_python`). We will need to
+    #     # add the computation on the corresponding module post-migration.
+    #     types = ['percent', 'fixed', 'group', 'division']
+    #     if any(x.amount_type not in types for x in line.invoice_line_tax_ids):
+    #         continue
+    #     # This has been extracted from `_compute_price` method
+    #     currency = line.invoice_id and line.invoice_id.currency_id or None
+    #     price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
+    #     taxes = line.invoice_line_tax_ids.compute_all(
+    #         price, currency, line.quantity, product=line.product_id,
+    #         partner=line.invoice_id.partner_id,
+    #     )
+    #     line.price_total = taxes['total_included']
     openupgrade.logger.debug("Compute finished")
 
 
