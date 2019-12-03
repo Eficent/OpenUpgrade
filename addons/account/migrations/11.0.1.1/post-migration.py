@@ -106,14 +106,14 @@ def fill_account_invoice_line_total(env):
                              "totals: %s" % len(rest_lines))
     line_dict_taxes = {}
     for rest_line in rest_lines:
-        key_dict = {
-            'price_unit': rest_line.price_unit,
-            'discount': rest_line.discount,
-            'currency_id': rest_line.currency_id,
-            'quantity': rest_line.quantity,
-            'product_id': rest_line.product_id,
-            'tax_ids': rest_line.invoice_line_tax_ids,
-        }
+        key_dict = (
+            rest_line.price_unit,
+            rest_line.discount,
+            rest_line.currency_id,
+            rest_line.quantity,
+            rest_line.product_id,
+            rest_line.invoice_line_tax_ids,
+        )
         if key_dict not in line_dict_taxes.keys():
             line_dict_taxes[key_dict] = {
                 'price_total': 0.0,
@@ -122,11 +122,9 @@ def fill_account_invoice_line_total(env):
             line_dict_taxes[key_dict]['line_ids'].append(rest_line.id)
 
     for key_dict in line_dict_taxes.keys():
-        price = key_dict['price_unit'] * (1 - (
-            key_dict['discount'] or 0.0) / 100.0)
-        line_dict_taxes[key_dict] = key_dict['tax_ids'].compute_all(
-            price, key_dict['currency_id'],
-            key_dict['quantity'], product=key_dict['product_id'],
+        price = key_dict[0] * (1 - (key_dict[1] or 0.0) / 100.0)
+        line_dict_taxes[key_dict] = key_dict[5].compute_all(
+            price, key_dict[2], key_dict[3], product=key_dict[4],
             partner=False)['total_included']
         openupgrade.logged_query(
             env.cr, """
