@@ -128,9 +128,9 @@ def fill_account_invoice_line_total(env):
             partner=False)['total_included']
         openupgrade.logged_query(
             env.cr, """
-                    UPDATE account_invoice_line ail
-                    SET ail.price_total = %s
-                    WHERE ail.id IN %s
+                    UPDATE account_invoice_line
+                    SET price_total = %s
+                    WHERE id IN %s
             """, (line_dict_taxes[key_dict]['price_total'],
                   tuple(line_dict_taxes[key_dict]['line_ids']))
         )
