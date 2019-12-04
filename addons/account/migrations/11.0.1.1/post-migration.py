@@ -123,7 +123,7 @@ def fill_account_invoice_line_total(env):
 
     for key_dict in line_dict_taxes.keys():
         price = key_dict[0] * (1 - (key_dict[1] or 0.0) / 100.0)
-        line_dict_taxes[key_dict] = key_dict[5].compute_all(
+        line_dict_taxes[key_dict]['price_total'] = key_dict[5].compute_all(
             price, key_dict[2], key_dict[3], product=key_dict[4],
             partner=False)['total_included']
         openupgrade.logged_query(
