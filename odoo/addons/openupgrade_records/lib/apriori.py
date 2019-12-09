@@ -29,10 +29,12 @@ renamed_modules = {
     # OCA/server-tools
     'attachment_base_synchronize': 'attachment_queue',
     # OCA/stock-logistics-workflow
-    'stock_batch_picking': 'stock_picking_batch_extended',
     'stock_pack_operation_auto_fill': 'stock_move_line_auto_fill',
     # OCA/web
     'web_advanced_filters': 'web_advanced_filter',
+    'web_tree_image': 'web_tree_image_tooltip',
+    # OCA/account-reconcile
+    'account_exclude_from_bank_statement_reconciliation': 'account_skip_bank_reconciliation',
 }
 
 merged_modules = {
