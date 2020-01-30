@@ -34,6 +34,7 @@ def set_default_values(env):
         env.cr, env, {
             'pos.config': [
                 ('customer_facing_display_html', None),
+                ('use_pricelist', True),
             ]
         }, use_orm=True,
     )
