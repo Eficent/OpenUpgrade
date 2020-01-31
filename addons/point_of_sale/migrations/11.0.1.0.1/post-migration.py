@@ -40,6 +40,16 @@ def set_default_values(env):
     )
 
 
+def set_available_pricelists(env):
+    for pos_config in env["pos.config"].search([]):
+        if pos_config.pricelist_id:
+            available_pricelists_ids = env["product.pricelist"].search(
+                [("currency_id", "=", pos_config.pricelist_id.currency_id.id)])
+            pos_config.available_pricelist_ids = [
+                (4, pricelist.id) for pricelist in available_pricelists_ids
+            ]
+
+
 @openupgrade.migrate()
 def migrate(env, version):
     set_default_values(env)
@@ -48,3 +58,4 @@ def migrate(env, version):
     openupgrade.load_data(
         env.cr, 'point_of_sale', 'migrations/11.0.1.0.1/noupdate_changes.xml',
     )
+    set_available_pricelists(env)
