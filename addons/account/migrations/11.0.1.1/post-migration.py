@@ -114,16 +114,11 @@ def fill_account_invoice_line_total(env):
             rest_line.product_id,
             rest_line.invoice_line_tax_ids,
         )
-        if key_dict not in line_dict_taxes.keys():
-            line_dict_taxes[key_dict] = {
-                'price_total': 0.0,
-                'line_ids': rest_line.ids}
-        else:
-            line_dict_taxes[key_dict]['line_ids'].append(rest_line.id)
+        line_dict_taxes.setdefault(key_dict, []).append(rest_line.id)
 
     for key_dict in line_dict_taxes.keys():
         price = key_dict[0] * (1 - (key_dict[1] or 0.0) / 100.0)
-        line_dict_taxes[key_dict]['price_total'] = key_dict[5].compute_all(
+        price_total = key_dict[5].compute_all(
             price, key_dict[2], key_dict[3], product=key_dict[4],
             partner=False)['total_included']
         openupgrade.logged_query(
@@ -131,8 +126,8 @@ def fill_account_invoice_line_total(env):
                     UPDATE account_invoice_line
                     SET price_total = %s
                     WHERE id IN %s
-            """, (line_dict_taxes[key_dict]['price_total'],
-                  tuple(line_dict_taxes[key_dict]['line_ids']))
+            """, (price_total,
+                  tuple(line_dict_taxes[key_dict]))
         )
     # for line in rest_lines:
     #     # avoid error on taxes with other type of computation ('code' for
