@@ -104,22 +104,38 @@ def fill_account_invoice_line_total(env):
     rest_lines = line_obj.search([]) - empty_lines - simple_lines
     openupgrade.logger.debug("Compute the rest of the account.invoice.line"
                              "totals: %s" % len(rest_lines))
-    line_dict_taxes = {}
-    for rest_line in rest_lines:
-        key_dict = (
-            rest_line.price_unit,
-            rest_line.discount,
-            rest_line.currency_id,
-            rest_line.quantity,
-            rest_line.product_id,
-            rest_line.invoice_line_tax_ids,
-        )
-        line_dict_taxes.setdefault(key_dict, []).append(rest_line.id)
 
-    for key_dict in line_dict_taxes.keys():
-        price = key_dict[0] * (1 - (key_dict[1] or 0.0) / 100.0)
-        price_total = key_dict[5].compute_all(
-            price, key_dict[2], key_dict[3], product=key_dict[4],
+    openupgrade.logged_query(
+        env.cr, """
+                SELECT 
+                        STRING_AGG(id::CHARACTER varying, ',') id, 
+                        price_unit, discount, currency_id, quantity, 
+                        product_id, tax_id
+                FROM (
+                    SELECT aml.*, ailt.tax_id AS tax_id
+                    FROM account_invoice_line AS aml 
+                    LEFT JOIN (
+                            SELECT invoice_line_id, STRING_AGG(tax_id::CHARACTER varying, ',') tax_id 
+                            FROM account_invoice_line_tax 
+                            GROUP BY invoice_line_id) AS ailt 
+                        ON aml.id = ailt.invoice_line_id
+                    WHERE aml.id IN %s
+                        AND currency_id IS NOT NULL
+                        AND product_id IS NOT null
+                        AND tax_id IS NOT NULL) AS sub
+                GROUP BY price_unit, discount, currency_id, quantity, product_id, tax_id;
+        """, (tuple(rest_lines.ids),)
+        )
+
+    for row in env.cr.fetchall():
+        openupgrade.logger.debug(row)
+        price = row[1] * (1 - (row[2] or 0.0) / 100.0)
+        invoice_line_tax_ids = env["account.tax"].browse(
+            [int(line_id) for line_id in row[6].split(",")])
+        currency_id = env["res.currency"].browse(int(row[3]))
+        product_id = env["product.product"].browse(int(row[5]))
+        price_total = invoice_line_tax_ids.compute_all(
+            price, currency_id, row[4], product=product_id,
             partner=False)['total_included']
         openupgrade.logged_query(
             env.cr, """
@@ -127,23 +143,8 @@ def fill_account_invoice_line_total(env):
                     SET price_total = %s
                     WHERE id IN %s
             """, (price_total,
-                  tuple(line_dict_taxes[key_dict]))
+                  tuple([int(line_id) for line_id in row[0].split(",")]))
         )
-    # for line in rest_lines:
-    #     # avoid error on taxes with other type of computation ('code' for
-    #     # example, provided by module `account_tax_python`). We will need to
-    #     # add the computation on the corresponding module post-migration.
-    #     types = ['percent', 'fixed', 'group', 'division']
-    #     if any(x.amount_type not in types for x in line.invoice_line_tax_ids):
-    #         continue
-    #     # This has been extracted from `_compute_price` method
-    #     currency = line.invoice_id and line.invoice_id.currency_id or None
-    #     price = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
-    #     taxes = line.invoice_line_tax_ids.compute_all(
-    #         price, currency, line.quantity, product=line.product_id,
-    #         partner=line.invoice_id.partner_id,
-    #     )
-    #     line.price_total = taxes['total_included']
     openupgrade.logger.debug("Compute finished")
 
 
