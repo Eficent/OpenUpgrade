@@ -48,6 +48,8 @@ renamed_modules = {
     ),
     # OCA/web
     'web_advanced_search_x2x': 'web_advanced_search',
+    # Odoo/enterprise
+    'grid': 'web_grid',
 }
 
 merged_modules = {
