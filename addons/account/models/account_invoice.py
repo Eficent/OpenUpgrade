@@ -1709,11 +1709,66 @@ class AccountInvoiceTax(models.Model):
     _description = "Invoice Tax"
     _order = 'sequence'
 
+    def _prepare_tax_vals(self, tax, account_id, invoice_type):
+        """ Prepare values to create an account.invoice.tax line
+
+        The line parameter is an account.invoice.line, and the
+        tax parameter is the output of account.tax.compute_all().
+        """
+        vals = {
+            'tax_id': tax['id'],
+            'amount': tax['amount'],
+            'base': tax['base'],
+            'account_id': invoice_type in ('out_invoice', 'in_invoice') and (tax['account_id'] or account_id) or (tax['refund_account_id'] or account_id),
+        }
+
+        return vals
+
     @api.depends('invoice_id.invoice_line_ids')
     def _compute_base_amount(self):
         tax_grouped = {}
-        for invoice in self.mapped('invoice_id'):
-            tax_grouped[invoice.id] = invoice.get_taxes_values()
+        self.env.cr.execute("""
+            SELECT STRING_AGG(invoice_id::CHARACTER varying, ',') invoice_id, price_unit, discount, currency_id,
+                    quantity, product_id, tax_id, account_id, invoice_type
+            FROM (
+                SELECT aml.*, ailt.tax_id AS tax_id, ai.TYPE AS invoice_type
+                FROM account_invoice_line AS aml
+                LEFT JOIN (
+                        SELECT invoice_line_id, STRING_AGG(tax_id::CHARACTER varying, ',') tax_id
+                        FROM account_invoice_line_tax
+                        GROUP BY invoice_line_id) AS ailt
+                    ON aml.id = ailt.invoice_line_id
+                LEFT JOIN account_invoice AS ai
+                    ON ai.id = aml.invoice_id
+                WHERE tax_id IS NOT NULL) AS sub
+            GROUP BY price_unit, discount, currency_id, quantity, product_id, tax_id, account_id, invoice_type;
+        """)
+        for row in self.env.cr.fetchall():
+            price = row[1] * (1 - (row[2] or 0.0) / 100.0)
+            invoice_line_tax_ids = self.env["account.tax"].browse(
+                [int(line_id) for line_id in row[6].split(",")])
+            currency_id = self.env["res.currency"].browse(int(row[3])) if row[3] else None
+            round_curr = currency_id.round
+            product_id = self.env["product.product"].browse(int(row[5])) if row[5] else None
+            taxes = invoice_line_tax_ids.compute_all(
+                price, currency_id, row[4], product=product_id,
+                partner=False)['taxes']
+            for invoice_id in [int(invoice_id) for invoice_id in row[0].split(",")]:
+                if invoice_id not in tax_grouped:
+                    tax_grouped[invoice_id] = {}
+                for tax in taxes:
+                    val = self._prepare_tax_vals(tax, row[7], row[8])
+                    key = self.env['account.tax'].browse(tax['id']).get_grouping_key({
+                        'tax_id': val["tax_id"],
+                        'account_id': val["account_id"],
+                        'account_analytic_id': False,
+                    })
+                    if key not in tax_grouped[invoice_id]:
+                        tax_grouped[invoice_id][key] = val
+                        tax_grouped[invoice_id][key]['base'] = round_curr(val['base'])
+                    else:
+                        tax_grouped[invoice_id][key]['amount'] += val['amount']
+                        tax_grouped[invoice_id][key]['base'] += round_curr(val['base'])
         for tax in self:
             tax.base = 0.0
             if tax.tax_id:
@@ -1726,6 +1781,24 @@ class AccountInvoiceTax(models.Model):
                     tax.base = tax_grouped[tax.invoice_id.id][key]['base']
                 else:
                     _logger.warning('Tax Base Amount not computable probably due to a change in an underlying tax (%s).', tax.tax_id.name)
+
+    # @api.depends('invoice_id.invoice_line_ids')
+    # def _compute_base_amount(self):
+    #     tax_grouped = {}
+    #     for invoice in self.mapped('invoice_id'):
+    #         tax_grouped[invoice.id] = invoice.get_taxes_values()
+    #     for tax in self:
+    #         tax.base = 0.0
+    #         if tax.tax_id:
+    #             key = tax.tax_id.get_grouping_key({
+    #                 'tax_id': tax.tax_id.id,
+    #                 'account_id': tax.account_id.id,
+    #                 'account_analytic_id': tax.account_analytic_id.id,
+    #             })
+    #             if tax.invoice_id and key in tax_grouped[tax.invoice_id.id]:
+    #                 tax.base = tax_grouped[tax.invoice_id.id][key]['base']
+    #             else:
+    #                 _logger.warning('Tax Base Amount not computable probably due to a change in an underlying tax (%s).', tax.tax_id.name)
 
     invoice_id = fields.Many2one('account.invoice', string='Invoice', ondelete='cascade', index=True)
     name = fields.Char(string='Tax Description', required=True)
