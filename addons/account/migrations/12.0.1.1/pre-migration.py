@@ -120,6 +120,29 @@ def prefill_account_chart_template_transfer_account_prefix(env):
                 "SET transfer_account_code_prefix = 'OUB'")
 
 
+def prefill_vendor_display_name_account_invoice(cr):
+    if openupgrade.column_exists(
+        cr, 'account_invoice', 'vendor_display_name'
+    ):
+        return
+    cr.execute(
+        "ALTER TABLE account_invoice ADD COLUMN vendor_display_name varchar",
+    )
+    openupgrade.logged_query(
+        cr, """
+            UPDATE account_invoice ai
+            SET vendor_display_name = sub.name
+            FROM (
+                SELECT ai.id as id, rp.name as name
+                FROM account_invoice as ai
+                LEFT JOIN res_partner as rp
+                    ON rp.id = ai.partner_id
+            ) sub
+            WHERE ai.id = sub.id
+            """,
+    )
+
+
 @openupgrade.migrate()
 def migrate(env, version):
     cr = env.cr
@@ -145,3 +168,4 @@ def migrate(env, version):
     prefill_account_chart_template_transfer_account_prefix(env)
     openupgrade.set_xml_ids_noupdate_value(
         env, 'account', ['account_analytic_line_rule_billing_user'], False)
+    prefill_vendor_display_name_account_invoice(cr)
