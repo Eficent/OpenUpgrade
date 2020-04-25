@@ -4,6 +4,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 from psycopg2.extensions import AsIs
 from openupgradelib import openupgrade
+import pandas as pd
 
 
 @openupgrade.logging()
@@ -107,7 +108,7 @@ def fill_account_invoice_line_total(env):
 
     env.cr.execute("""
             SELECT 
-                    STRING_AGG(id::CHARACTER varying, ',') id, 
+                    id::character varying,
                     price_unit, discount, currency_id, quantity, 
                     product_id, tax_id
             FROM (
@@ -118,22 +119,28 @@ def fill_account_invoice_line_total(env):
                         FROM account_invoice_line_tax 
                         GROUP BY invoice_line_id) AS ailt 
                     ON aml.id = ailt.invoice_line_id
-                WHERE aml.id IN %s
-                    AND currency_id IS NOT NULL
+                WHERE currency_id IS NOT NULL
                     AND product_id IS NOT null
-                    AND tax_id IS NOT NULL) AS sub
-            GROUP BY price_unit, discount, currency_id, quantity, product_id, tax_id;
-        """, (tuple(rest_lines.ids),)
-        )
+                    AND tax_id IS NOT NULL) AS sub;
+        """)
 
-    for row in env.cr.fetchall():
-        price = row[1] * (1 - (row[2] or 0.0) / 100.0)
+    data = env.cr.fetchall()
+    df = pd.DataFrame(data, columns=[
+        'id', 'price_unit', 'discount', 'currency_id', 'quantity',
+        'product_id', 'tax_id'])
+    rest_lines = [str(i) for i in rest_lines.ids]
+    df = df[df.id.isin(rest_lines)]
+    df = df.groupby(['price_unit', 'discount', 'currency_id', 'quantity',
+                     'product_id', 'tax_id'], as_index=False).agg(
+        {'id': ','.join})
+    for index, row in df.iterrows():
+        price = row["price_unit"] * (1 - (row["discount"] or 0.0) / 100.0)
         invoice_line_tax_ids = env["account.tax"].browse(
-            [int(line_id) for line_id in row[6].split(",")])
-        currency_id = env["res.currency"].browse(int(row[3]))
-        product_id = env["product.product"].browse(int(row[5]))
+            [int(line_id) for line_id in row["tax_id"].split(",")])
+        currency_id = env["res.currency"].browse(int(row["currency_id"]))
+        product_id = env["product.product"].browse(int(row["product_id"]))
         price_total = invoice_line_tax_ids.compute_all(
-            price, currency_id, row[4], product=product_id,
+            price, currency_id, row["quantity"], product=product_id,
             partner=False)['total_included']
         openupgrade.logged_query(
             env.cr, """
@@ -141,7 +148,7 @@ def fill_account_invoice_line_total(env):
                     SET price_total = %s
                     WHERE id IN %s
             """, (price_total,
-                  tuple([int(line_id) for line_id in row[0].split(",")]))
+                  tuple([int(line_id) for line_id in row["id"].split(",")]))
         )
     openupgrade.logger.debug("Compute finished")
 
