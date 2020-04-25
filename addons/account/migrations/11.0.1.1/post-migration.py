@@ -105,30 +105,28 @@ def fill_account_invoice_line_total(env):
     openupgrade.logger.debug("Compute the rest of the account.invoice.line"
                              "totals: %s" % len(rest_lines))
 
-    openupgrade.logged_query(
-        env.cr, """
-                SELECT 
-                        STRING_AGG(id::CHARACTER varying, ',') id, 
-                        price_unit, discount, currency_id, quantity, 
-                        product_id, tax_id
-                FROM (
-                    SELECT aml.*, ailt.tax_id AS tax_id
-                    FROM account_invoice_line AS aml 
-                    LEFT JOIN (
-                            SELECT invoice_line_id, STRING_AGG(tax_id::CHARACTER varying, ',') tax_id 
-                            FROM account_invoice_line_tax 
-                            GROUP BY invoice_line_id) AS ailt 
-                        ON aml.id = ailt.invoice_line_id
-                    WHERE aml.id IN %s
-                        AND currency_id IS NOT NULL
-                        AND product_id IS NOT null
-                        AND tax_id IS NOT NULL) AS sub
-                GROUP BY price_unit, discount, currency_id, quantity, product_id, tax_id;
+    env.cr.execute("""
+            SELECT 
+                    STRING_AGG(id::CHARACTER varying, ',') id, 
+                    price_unit, discount, currency_id, quantity, 
+                    product_id, tax_id
+            FROM (
+                SELECT aml.*, ailt.tax_id AS tax_id
+                FROM account_invoice_line AS aml 
+                LEFT JOIN (
+                        SELECT invoice_line_id, STRING_AGG(tax_id::CHARACTER varying, ',') tax_id 
+                        FROM account_invoice_line_tax 
+                        GROUP BY invoice_line_id) AS ailt 
+                    ON aml.id = ailt.invoice_line_id
+                WHERE aml.id IN %s
+                    AND currency_id IS NOT NULL
+                    AND product_id IS NOT null
+                    AND tax_id IS NOT NULL) AS sub
+            GROUP BY price_unit, discount, currency_id, quantity, product_id, tax_id;
         """, (tuple(rest_lines.ids),)
         )
 
     for row in env.cr.fetchall():
-        openupgrade.logger.debug(row)
         price = row[1] * (1 - (row[2] or 0.0) / 100.0)
         invoice_line_tax_ids = env["account.tax"].browse(
             [int(line_id) for line_id in row[6].split(",")])
