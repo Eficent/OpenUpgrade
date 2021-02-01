@@ -66,24 +66,24 @@ def migrate(env, version):
             'sale_quotation_builder.confirmation_mail',
         ],
     )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'product.template', 'quotation_only_description',
-    )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'sale.order', 'website_description',
-    )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'sale.order.line', 'website_description',
-    )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'sale.order.option', 'website_description',
-    )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'sale.order.template', 'website_description',
-    )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'sale.order.template.line', 'website_description',
-    )
-    openupgrade_120.convert_field_bootstrap_3to4(
-        env, 'sale.order.template.option', 'website_description',
-    )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'product.template', 'quotation_only_description',
+    # )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'sale.order', 'website_description',
+    # )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'sale.order.line', 'website_description',
+    # )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'sale.order.option', 'website_description',
+    # )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'sale.order.template', 'website_description',
+    # )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'sale.order.template.line', 'website_description',
+    # )
+    # openupgrade_120.convert_field_bootstrap_3to4(
+    #     env, 'sale.order.template.option', 'website_description',
+    # )
