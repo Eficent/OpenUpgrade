@@ -2,6 +2,8 @@
 # Copyright 2020 Tecnativa - Pedro M. Baeza
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 from openupgradelib import openupgrade
+from openupgradelib.openupgrade_merge_records import merge_records
+
 
 _xmlid_renames = [
     ('sale.group_discount_per_so_line', 'product.group_discount_per_so_line'),
@@ -41,8 +43,63 @@ def fill_product_pricelist_item_active_default(env):
     )
 
 
+def merge_variants_with_same_attributes(env):
+    openupgrade.logged_query(
+        env.cr, """
+        WITH pvc AS (
+            SELECT pavppr.product_product_id,
+            ptav.id AS product_template_attribute_value_id
+            FROM product_attribute_value_product_product_rel pavppr
+            JOIN product_product pp ON pp.id = pavppr.product_product_id
+            JOIN product_template_attribute_value ptav
+            ON ptav.product_attribute_value_id =
+                pavppr.product_attribute_value_id
+            AND pp.product_tmpl_id = ptav.product_tmpl_id
+        ), templates AS (
+            SELECT pt.id, grouped_pvc.indices, COUNT(*)
+            FROM product_product pp
+            JOIN product_template pt ON pt.id = pp.product_tmpl_id
+            JOIN (
+                SELECT pvc.product_product_id, STRING_AGG(
+                    pvc.product_template_attribute_value_id::varchar, ','
+                    ORDER BY pvc.product_template_attribute_value_id) indices
+                FROM pvc
+                JOIN product_product pp ON pp.id = pvc.product_product_id
+                GROUP BY pvc.product_product_id
+            ) grouped_pvc ON grouped_pvc.product_product_id = pp.id
+            GROUP BY pt.id, grouped_pvc.indices
+            HAVING COUNT(*) > 1
+        )
+        SELECT pp.id, pp.product_tmpl_id
+        FROM product_product pp
+        JOIN product_template pt ON pt.id = pp.product_tmpl_id
+        JOIN (
+            SELECT pvc.product_product_id, STRING_AGG(
+                pvc.product_template_attribute_value_id::varchar, ','
+                ORDER BY pvc.product_template_attribute_value_id) indices
+            FROM pvc
+            JOIN product_product pp ON pp.id = pvc.product_product_id
+            GROUP BY pvc.product_product_id
+        ) grouped_pvc ON grouped_pvc.product_product_id = pp.id
+        JOIN templates ON (
+            templates.id = pt.id AND templates.indices = grouped_pvc.indices)
+        """)
+    templates = {}
+    for product_id, template_id in env.cr.fetchall():
+        if template_id in templates:
+            templates[template_id] += [product_id]
+        else:
+            templates[template_id] = [product_id]
+    for template_id in templates:
+        merge_records(
+            env, 'product.product', templates[template_id],
+            templates[template_id][0], field_spec=None, method='sql',
+            delete=True, exclude_columns=None, model_table='product_product')
+
+
 def calculate_product_product_combination_indices(env):
     """Avoid product_product_combination_unique constrain"""
+    merge_variants_with_same_attributes(env)
     openupgrade.logged_query(
         env.cr, """
         ALTER TABLE product_product
